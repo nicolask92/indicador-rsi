@@ -4,12 +4,17 @@ import { sectors } from '@/lib/stocks';
 import { calculateRSI, RSIData } from '@/lib/rsi';
 import cache from '@/lib/cache';
 
-const CACHE_KEY = 'rsi_data';
+interface CachedRSIData {
+  data: Record<string, RSIData>;
+  timestamp: string;
+}
+
+const getCacheKey = (period: number) => `rsi_data_${period}`;
 
 /**
  * Obtiene datos históricos de Yahoo Finance
  */
-async function fetchStockData(symbol: string, market: 'US' | 'AR'): Promise<RSIData> {
+async function fetchStockData(symbol: string, market: 'US' | 'AR', rsiPeriod: number = 14): Promise<RSIData> {
   try {
     // Ajustar símbolo para Yahoo Finance
     let yahooSymbol = symbol;
@@ -17,8 +22,9 @@ async function fetchStockData(symbol: string, market: 'US' | 'AR'): Promise<RSID
     // Los símbolos argentinos que terminan en .BA ya están en formato correcto
     // Los ADRs de Argentina están en formato correcto también
     
-    // Obtener datos de los últimos 30 días para calcular RSI de 14 períodos
-    const period1 = Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+    // Obtener datos suficientes para calcular RSI (período + 15 días extra para seguridad)
+    const daysToFetch = Math.max(rsiPeriod + 20, 35);
+    const period1 = Math.floor(Date.now() / 1000) - daysToFetch * 24 * 60 * 60;
     const period2 = Math.floor(Date.now() / 1000);
     
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?period1=${period1}&period2=${period2}&interval=1d`;
@@ -47,7 +53,7 @@ async function fetchStockData(symbol: string, market: 'US' | 'AR'): Promise<RSID
     const quotes = result.indicators.quote[0];
     const closePrices = quotes.close.filter((p: number | null) => p !== null) as number[];
     
-    if (closePrices.length < 15) {
+    if (closePrices.length < rsiPeriod + 1) {
       return {
         symbol,
         rsi: null,
@@ -59,7 +65,7 @@ async function fetchStockData(symbol: string, market: 'US' | 'AR'): Promise<RSID
     }
 
     // Calcular RSI
-    const rsi = calculateRSI(closePrices, 14);
+    const rsi = calculateRSI(closePrices, rsiPeriod);
     
     // Obtener precio actual y cambio
     const currentPrice = closePrices[closePrices.length - 1];
@@ -90,7 +96,7 @@ async function fetchStockData(symbol: string, market: 'US' | 'AR'): Promise<RSID
 /**
  * Procesa los stocks en lotes para no sobrecargar la API
  */
-async function fetchAllStocks(): Promise<Record<string, RSIData>> {
+async function fetchAllStocks(rsiPeriod: number = 14): Promise<Record<string, RSIData>> {
   const allStocks = sectors.flatMap((sector) => sector.stocks);
   const results: Record<string, RSIData> = {};
   
@@ -98,7 +104,7 @@ async function fetchAllStocks(): Promise<Record<string, RSIData>> {
   const batchSize = 10;
   for (let i = 0; i < allStocks.length; i += batchSize) {
     const batch = allStocks.slice(i, i + batchSize);
-    const batchPromises = batch.map((stock) => fetchStockData(stock.symbol, stock.market));
+    const batchPromises = batch.map((stock) => fetchStockData(stock.symbol, stock.market, rsiPeriod));
     const batchResults = await Promise.all(batchPromises);
     
     batchResults.forEach((result) => {
@@ -114,29 +120,49 @@ async function fetchAllStocks(): Promise<Record<string, RSIData>> {
   return results;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Verificar si hay datos en caché
-    const cachedData = cache.get<Record<string, RSIData>>(CACHE_KEY);
-    if (cachedData) {
-      return NextResponse.json({
-        data: cachedData,
-        cached: true,
-        timestamp: new Date().toISOString(),
-      });
+    // Obtener el período del query string (default: 14)
+    const { searchParams } = new URL(request.url);
+    const period = parseInt(searchParams.get('period') || '14', 10);
+    const forceRefresh = searchParams.get('force') === 'true';
+    
+    // Validar el período
+    if (![7, 14, 21, 30].includes(period)) {
+      return NextResponse.json(
+        { error: 'Invalid period. Must be 7, 14, 21, or 30' },
+        { status: 400 }
+      );
     }
 
-    // Si no hay datos en caché, obtenerlos
-    console.log('Fetching fresh RSI data...');
-    const data = await fetchAllStocks();
+    const cacheKey = getCacheKey(period);
     
-    // Guardar en caché
-    cache.set(CACHE_KEY, data);
+    // Si no es una actualización forzada, verificar si hay datos en caché
+    if (!forceRefresh) {
+      const cachedData = cache.get<CachedRSIData>(cacheKey);
+      if (cachedData) {
+        return NextResponse.json({
+          data: cachedData.data,
+          cached: true,
+          timestamp: cachedData.timestamp,
+          period,
+        });
+      }
+    }
+
+    // Obtener datos frescos (o porque no hay caché, o porque es actualización forzada)
+    console.log(`Fetching fresh RSI data for period ${period}${forceRefresh ? ' (forced refresh)' : ''}...`);
+    const data = await fetchAllStocks(period);
+    const timestamp = new Date().toISOString();
+    
+    // Guardar en caché con timestamp
+    cache.set(cacheKey, { data, timestamp });
     
     return NextResponse.json({
       data,
       cached: false,
-      timestamp: new Date().toISOString(),
+      timestamp,
+      period,
     });
   } catch (error) {
     console.error('Error in RSI API:', error);

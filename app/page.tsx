@@ -8,6 +8,7 @@ interface APIResponse {
   data: Record<string, RSIData>;
   cached: boolean;
   timestamp: string;
+  period: number;
 }
 
 export default function Home() {
@@ -15,11 +16,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [rsiPeriod, setRsiPeriod] = useState<number>(14);
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh: boolean = false) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/rsi');
+      const url = `/api/rsi?period=${rsiPeriod}${forceRefresh ? '&force=true' : ''}`;
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Error al obtener datos');
       }
@@ -41,7 +44,7 @@ export default function Home() {
     const interval = setInterval(fetchData, 10 * 60 * 1000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [rsiPeriod]); // Re-fetch cuando cambie el período
 
   const calculateSectorChange = (sectorStocks: typeof sectors[0]['stocks']) => {
     const validChanges = sectorStocks
@@ -91,19 +94,37 @@ export default function Home() {
     <main className="min-h-screen p-4">
       <div className="max-w-[1920px] mx-auto">
         {/* Header */}
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
           <h1 className="text-3xl font-bold">RSI Dashboard - Mercados Argentina y EEUU</h1>
-          <div className="text-right">
-            <div className="text-sm text-gray-400">
-              Última actualización: {lastUpdate || 'Cargando...'}
+          <div className="flex items-center gap-4">
+            {/* Selector de período */}
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">Período RSI:</label>
+              <select
+                value={rsiPeriod}
+                onChange={(e) => setRsiPeriod(Number(e.target.value))}
+                disabled={loading}
+                className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:border-blue-500 focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value={7}>7 días</option>
+                <option value={14}>14 días (estándar)</option>
+                <option value={21}>21 días</option>
+                <option value={30}>30 días</option>
+              </select>
             </div>
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm"
-            >
-              {loading ? 'Actualizando...' : 'Actualizar'}
-            </button>
+            
+            <div className="text-right">
+              <div className="text-sm text-gray-400">
+                Última actualización: {lastUpdate || 'Cargando...'}
+              </div>
+              <button
+                onClick={() => fetchData(true)}
+                disabled={loading}
+                className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-sm"
+              >
+                {loading ? 'Actualizando...' : 'Actualizar'}
+              </button>
+            </div>
           </div>
         </div>
 
