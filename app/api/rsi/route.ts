@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { sectors } from '@/lib/stocks';
-import { calculateRSI, RSIData } from '@/lib/rsi';
+import { 
+  calculateRSI, 
+  calculateStochRSI,
+  calculateSmoothedRSI,
+  calculateRSIMomentum,
+  calculateOpportunityScore,
+  RSIData 
+} from '@/lib/rsi';
 import cache from '@/lib/cache';
 
 interface CachedRSIData {
@@ -67,11 +74,34 @@ async function fetchStockData(symbol: string, market: 'US' | 'AR', rsiPeriod: nu
     // Calcular RSI
     const rsi = calculateRSI(closePrices, rsiPeriod);
     
+    // Calcular RSI histórico para StochRSI
+    const rsiValues: number[] = [];
+    for (let i = rsiPeriod; i < closePrices.length; i++) {
+      const priceSlice = closePrices.slice(0, i + 1);
+      const rsiVal = calculateRSI(priceSlice, rsiPeriod);
+      if (rsiVal !== null) {
+        rsiValues.push(rsiVal);
+      }
+    }
+    
+    // Calcular indicadores avanzados
+    const stochRsi = rsiValues.length >= 14 ? calculateStochRSI(rsiValues, 14) : null;
+    const rsiSmoothed = calculateSmoothedRSI(closePrices, rsiPeriod, 9);
+    const rsiMomentum = calculateRSIMomentum(closePrices, rsiPeriod);
+    
     // Obtener precio actual y cambio
     const currentPrice = closePrices[closePrices.length - 1];
     const previousPrice = closePrices[closePrices.length - 2];
     const change = currentPrice - previousPrice;
     const changePercent = (change / previousPrice) * 100;
+    
+    // Calcular score de oportunidad
+    const opportunityScore = calculateOpportunityScore(
+      rsi,
+      stochRsi,
+      rsiMomentum,
+      changePercent
+    );
 
     return {
       symbol,
@@ -79,6 +109,10 @@ async function fetchStockData(symbol: string, market: 'US' | 'AR', rsiPeriod: nu
       price: Math.round(currentPrice * 100) / 100,
       change: Math.round(change * 100) / 100,
       changePercent: Math.round(changePercent * 100) / 100,
+      stochRsi,
+      rsiSmoothed,
+      rsiMomentum,
+      opportunityScore,
     };
   } catch (error) {
     console.error(`Error fetching ${symbol}:`, error);
