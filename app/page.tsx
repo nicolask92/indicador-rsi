@@ -9,6 +9,7 @@ import {
   getOpportunityScoreColor,
   getMomentumEmoji
 } from '@/lib/rsi';
+import { StockDetailModal } from './components/StockDetailModal';
 
 interface APIResponse {
   data: Record<string, RSIData>;
@@ -23,6 +24,7 @@ export default function Home() {
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [rsiPeriod, setRsiPeriod] = useState<number>(14);
+  const [selectedStock, setSelectedStock] = useState<{ symbol: string; name: string } | null>(null);
 
   const fetchData = async (forceRefresh: boolean = false) => {
     try {
@@ -108,10 +110,23 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-4">
+      {/* Modal de Detalles */}
+      {selectedStock && (
+        <StockDetailModal
+          symbol={selectedStock.symbol}
+          stockName={selectedStock.name}
+          onClose={() => setSelectedStock(null)}
+          rsiPeriod={rsiPeriod}
+        />
+      )}
+      
       <div className="max-w-[1920px] mx-auto">
         {/* Header */}
         <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
-          <h1 className="text-3xl font-bold">RSI Dashboard - Mercados Argentina y EEUU</h1>
+          <div>
+            <h1 className="text-3xl font-bold">RSI Dashboard - Mercados Argentina y EEUU</h1>
+            <p className="text-xs text-gray-400 mt-1">💡 Haz clic en cualquier acción para ver su evolución histórica</p>
+          </div>
           <div className="flex items-center gap-4">
             {/* Selector de período */}
             <div className="flex flex-col">
@@ -167,7 +182,15 @@ export default function Home() {
                     return (
                       <div
                         key={stock.symbol}
-                        className="bg-gray-800/50 rounded p-3 border border-green-700/30 hover:border-green-600/50 transition-colors"
+                        className="bg-gray-800/50 rounded p-3 border border-green-700/30 hover:border-green-600/50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedStock({ symbol: stock.symbol, name: stock.name })}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setSelectedStock({ symbol: stock.symbol, name: stock.name });
+                          }
+                        }}
                       >
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1">
@@ -248,11 +271,19 @@ export default function Home() {
               </div>
               
               {sellOpportunities.length > 0 ? (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                   {sellOpportunities.map((stock) => (
                     <div
                       key={stock.symbol}
-                      className="bg-gray-800/50 rounded p-3 border border-red-700/30 hover:border-red-600/50 transition-colors"
+                      className="bg-gray-800/50 rounded p-3 border border-red-700/30 hover:border-red-600/50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedStock({ symbol: stock.symbol, name: stock.name })}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setSelectedStock({ symbol: stock.symbol, name: stock.name });
+                        }
+                      }}
                     >
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1">
@@ -326,7 +357,15 @@ export default function Home() {
                       return (
                         <div
                           key={stock.symbol}
-                          className="px-4 py-3 hover:bg-gray-800/50 transition-colors"
+                          className="px-4 py-3 hover:bg-gray-800/50 transition-colors cursor-pointer"
+                          onClick={() => setSelectedStock({ symbol: stock.symbol, name: stock.name })}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              setSelectedStock({ symbol: stock.symbol, name: stock.name });
+                            }
+                          }}
                         >
                           {/* Línea 1: Símbolo y Score */}
                           <div className="flex justify-between items-center mb-1.5">
