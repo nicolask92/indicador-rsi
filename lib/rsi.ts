@@ -175,9 +175,9 @@ export function calculateRSIMomentum(prices: number[], rsiPeriod: number = 14): 
     return 'neutral';
   }
 
-  // Calcular RSI para los últimos 3 puntos
+  // Calcular RSI para los últimos 3 puntos temporales
   const rsiValues: number[] = [];
-  for (let i = prices.length - 3; i <= prices.length; i++) {
+  for (let i = prices.length - 2; i <= prices.length; i++) {
     const priceSlice = prices.slice(0, i);
     const rsi = calculateRSI(priceSlice, rsiPeriod);
     if (rsi !== null) {
@@ -189,7 +189,7 @@ export function calculateRSIMomentum(prices: number[], rsiPeriod: number = 14): 
     return 'neutral';
   }
 
-  // Calcular tendencia promedio
+  // Calcular tendencia promedio entre los 3 puntos
   const trend1 = rsiValues[1] - rsiValues[0];
   const trend2 = rsiValues[2] - rsiValues[1];
   const avgTrend = (trend1 + trend2) / 2;

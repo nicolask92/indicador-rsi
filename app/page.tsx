@@ -317,66 +317,79 @@ export default function Home() {
                       const rsi = data?.rsi;
                       const changePercent = data?.changePercent;
                       const rsiColor = getRSIColor(rsi);
-                      const rsiTextColor = getRSITextColor(rsi);
                       const opportunityScore = data?.opportunityScore;
                       const momentum = data?.rsiMomentum;
                       const momentumEmoji = getMomentumEmoji(momentum);
+                      const stochRsi = data?.stochRsi;
+                      const rsiSmoothed = data?.rsiSmoothed;
 
                       return (
                         <div
                           key={stock.symbol}
-                          className="px-4 py-2 hover:bg-gray-800/50 transition-colors"
+                          className="px-4 py-3 hover:bg-gray-800/50 transition-colors"
                         >
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-1">
-                                <span className="font-semibold text-sm">{stock.symbol}</span>
-                                {momentum && (
-                                  <span className="text-xs" title={`Momentum: ${momentum}`}>
-                                    {momentumEmoji}
-                                  </span>
-                                )}
-                                {opportunityScore !== null && opportunityScore !== undefined && opportunityScore >= 40 && (
-                                  <span 
-                                    className="ml-1 px-1.5 py-0.5 bg-green-600 text-white text-xs rounded font-bold"
-                                    title={`Score de Oportunidad: ${opportunityScore}`}
-                                  >
-                                    {opportunityScore}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-400 truncate">
-                                {stock.name}
-                              </div>
+                          {/* Línea 1: Símbolo y Score */}
+                          <div className="flex justify-between items-center mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm">{stock.symbol}</span>
+                              {opportunityScore !== null && opportunityScore !== undefined && opportunityScore >= 40 && (
+                                <span 
+                                  className="px-2 py-0.5 bg-green-600/80 text-white text-xs rounded font-bold"
+                                  title={`Score de Oportunidad: ${opportunityScore}`}
+                                >
+                                  {opportunityScore}
+                                </span>
+                              )}
                             </div>
-                            <div className="flex items-center gap-3 ml-2">
+                            <div className="flex items-center gap-2">
                               {/* RSI Badge */}
-                              <div className="text-right">
-                                <div className="text-xs text-gray-400">RSI</div>
-                                {rsi !== null && rsi !== undefined ? (
-                                  <div className={`${rsiColor} px-2 py-1 rounded text-xs font-bold`}>
-                                    {rsi.toFixed(1)}
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-gray-500">N/A</div>
-                                )}
+                              {rsi !== null && rsi !== undefined ? (
+                                <div className={`${rsiColor} px-2 py-1 rounded text-xs font-bold min-w-[45px] text-center`}>
+                                  {rsi.toFixed(1)}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-500">N/A</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Línea 2: Nombre de la empresa (truncado) */}
+                          <div className="text-xs text-gray-400 truncate mb-1.5">
+                            {stock.name}
+                          </div>
+
+                          {/* Línea 3: Indicadores + Momentum + Cambio */}
+                          <div className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-3">
+                              {/* Momentum */}
+                              <div className="flex items-center gap-1" title={`Momentum: ${momentum}`}>
+                                <span>{momentumEmoji}</span>
+                                <span className="text-gray-500 capitalize">{momentum}</span>
                               </div>
                               
-                              {/* Change Percentage */}
-                              {changePercent !== null && changePercent !== undefined && (
-                                <div className="text-right min-w-[60px]">
-                                  <div className="text-xs text-gray-400">%</div>
-                                  <div
-                                    className={`text-xs font-semibold ${
-                                      changePercent >= 0 ? 'text-green-400' : 'text-red-400'
-                                    }`}
-                                  >
-                                    {changePercent >= 0 ? '▲' : '▼'}{' '}
-                                    {Math.abs(changePercent).toFixed(2)}%
-                                  </div>
+                              {/* StochRSI */}
+                              {stochRsi !== null && stochRsi !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-500">S:</span>
+                                  <span className="text-blue-400 font-medium">{stochRsi.toFixed(0)}</span>
+                                </div>
+                              )}
+                              
+                              {/* RSI Suavizado */}
+                              {rsiSmoothed !== null && rsiSmoothed !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-500">Suav:</span>
+                                  <span className="text-purple-400 font-medium">{rsiSmoothed.toFixed(0)}</span>
                                 </div>
                               )}
                             </div>
+                            
+                            {/* Cambio de Precio */}
+                            {changePercent !== null && changePercent !== undefined && (
+                              <div className={`font-semibold ${changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {changePercent >= 0 ? '▲' : '▼'} {Math.abs(changePercent).toFixed(2)}%
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
